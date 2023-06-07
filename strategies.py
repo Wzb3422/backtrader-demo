@@ -14,19 +14,24 @@ class PrintClose(bt.Strategy):
     def next(self):
         self.log('Close:', self.dataclose[0])
 
+
+
 class MAcrossover(bt.Strategy): 
     # Moving average parameters
     params = (('pfast',20),('pslow',50),)
 
     def log(self, txt, dt=None):
         dt = dt or self.datas[0].datetime.date(0)
-        print(f'{dt.isoformat()} {txt}') # Comment this line when running optimization
+        # print(f'{dt.isoformat()} {txt}') # Comment this line when running optimization
 
     def __init__(self):
         self.dataclose = self.datas[0].close
         
 		# Order variable will contain ongoing order details/status
         self.order = None
+
+        # self.sellOrderCnt = 0
+        # self.buyOrderCnt = 0
 
         # Instantiate moving averages
         self.slow_sma = bt.indicators.MovingAverageSimple(self.datas[0], 
@@ -78,3 +83,22 @@ class MAcrossover(bt.Strategy):
 
         # Reset orders
         self.order = None
+
+class Screener_SMA(bt.Analyzer):
+    params = (('period',20), ('devfactor',2),)
+
+    def start(self):
+        self.bband = {data: bt.indicators.BollingerBands(data,
+                period=self.params.period, devfactor=self.params.devfactor)
+                for data in self.datas}
+
+    def stop(self):
+        self.rets['over'] = list()
+        self.rets['under'] = list()
+
+        for data, band in self.bband.items():
+            node = data._name, data.close[0], round(band.lines.bot[0], 2)
+            if data > band.lines.bot:
+                self.rets['over'].append(node)
+            else:
+                self.rets['under'].append(node)
